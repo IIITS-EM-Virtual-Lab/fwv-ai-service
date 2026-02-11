@@ -1,0 +1,1 @@
+B. Infinitely Long Coaxial Transmission Line Consider an infinitely long coaxial transmission line with: An inner conductor of radius a carrying a current I in the +z-direction. An outer cylindrical conductor with an inner radius b and outer radius c, carrying a current I in the −z-direction. For this configuration, we examine the magnetic field H in three regions:

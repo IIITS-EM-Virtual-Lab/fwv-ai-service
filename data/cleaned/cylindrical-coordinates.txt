@@ -1,0 +1,2 @@
+The differential length element along the φ direction is the length of the arc subtended by the angle. This length ρdφ, appears in all differential elements in cylindrical coordinates. The differential elements in cylindrical elements in cylindrical coordinates can be found as follows:
+2. Differential normal surface area is given by

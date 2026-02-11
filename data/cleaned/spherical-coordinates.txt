@@ -1,0 +1,2 @@
+1. The Differential elements in spherical coordinates can be found as:
+2. The Differential normal surface area is

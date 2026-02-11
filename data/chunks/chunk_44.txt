@@ -1,0 +1,1 @@
+Tip: switch to Lossy and increase α to see the envelope decay. Adjust θη to see why ⟨S⟩ scales with cos θη.

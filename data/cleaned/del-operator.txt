@@ -1,0 +1,4 @@
+This vector differential operator, otherwise known as gradient operator, is not a vector in itself, but when it operates on a scalar function. The operator is useful in defining
+1. The gradient of a scalar V, written as
+2. The divergence of a vector A, written as
+4. The Laplacian of a scalar V, written as

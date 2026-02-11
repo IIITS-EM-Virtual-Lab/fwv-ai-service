@@ -1,0 +1,1 @@
+For a good conductor \( \\sigma \\gg \\omega\\epsilon \\): Thus E leads H by 45°, and the fields decay exponentially. At \( z=\\delta \), the amplitude reduces to \( E_0 e^-1 \\approx 0.368 E_0 \). Quantity	Lossless Medium	Free Space	Good Conductor
