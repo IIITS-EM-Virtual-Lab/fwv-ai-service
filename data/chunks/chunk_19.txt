@@ -1,0 +1,1 @@
+An infinite plane sheet of charge carries a uniformly distributed positive charge with surface charge density σ, defined as the charge per unit area:σ = q/A. Using Gauss' Law, the electric field is calculated as: Consider a uniform spherical distribution of charge (held in an insulator). The charge density is uniform throughout the sphere. Using Gauss' Law:

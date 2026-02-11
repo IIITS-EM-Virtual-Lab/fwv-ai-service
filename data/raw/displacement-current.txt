@@ -1,0 +1,7 @@
+Test your knowledge of the skills in this course.
+The concept of displacement current was introduced by James Clerk Maxwell to modify Ampère's Law and make it consistent with the continuity equation. Displacement current is not an actual current of moving charges, but a term added to Ampère's Law to account for the changing electric field in situations where there is no physical current.
+Ampère's Law (with Maxwell's correction):
+. This term is added to the conduction current density
+J in Ampère's Law to form the modified equation:
+The inclusion of the displacement current term allows Maxwell's equations to predict the existence of electromagnetic waves, which propagate through space at the speed of light. This was a significant theoretical development that unified the theories of electricity and magnetism into a single framework.
+© 2025 Fields and Waves Visualization Lab

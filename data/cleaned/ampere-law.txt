@@ -1,0 +1,21 @@
+Ampère's Law states that the line integral of the magnetic field H around any closed loop is equal to the total current enclosed by that loop.
+Ampère's Law (in Terms of Magnetic Field Intensity H)
+Ampère's law is similar to Gauss's law, as it is most easily applied to determine H when the current distribution is symmetrical. Although the equation always holds regardless of symmetry, it is practically useful only when symmetry exists. Ampère's law is a special case of the Biot-Savart law.
+By applying Stokes's theorem to the left-hand side of the equation, we obtain:
+Comparing the surface integrals in the above equations gives us further insights.
+Ampère's Law can be used to determine H for symmetrical current distributions, much like how Gauss's Law is applied. We will consider:
+An infinitely long coaxial transmission line.
+For an infinite current sheet in the plane z = 0 with a uniform surface current density K (A/m):
+Amperian Path (p): Use a rectangular loop that crosses the sheet symmetrically, with segments above and below the sheet.
+Choosing a concentric circular Amperian path ensures H is constant if K is constant. Since this path encloses the entire current I, Ampère's law applies directly.
+B. Infinitely Long Coaxial Transmission Line
+Consider an infinitely long coaxial transmission line with:
+An inner conductor of radius a carrying a current I in the +z-direction.
+An outer cylindrical conductor with an inner radius b and outer radius c, carrying a current I in the −z-direction.
+For this configuration, we examine the magnetic field H in three regions:
+Between the inner and outer conductors (a < r < b).
+If the current I is uniformly distributed across the cross-sectional area of the inner conductor, then:
+In this region, the enclosed current is I, and Ampère's Law becomes:
+So, in the region between the conductors:
+Since the currents in the inner and outer conductors are equal and opposite, the total enclosed current for any radius r > c is zero. By Ampère's Law:
+Thus, outside the coaxial transmission line:

@@ -1,0 +1,3 @@
+Tip: choose p-pol and vary θᵢ to see Brewster angle.
+Reflection of a Plane Wave at Normal Incidence
+© 2025 Fields and Waves Visualization Lab

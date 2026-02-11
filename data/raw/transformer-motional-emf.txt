@@ -1,0 +1,6 @@
+Test your knowledge of the skills in this course.
+Transformer EMF is the electromotive force generated in a transformer due to the changing magnetic flux. According to Faraday's Law of Induction, a time-varying magnetic field induces an EMF in a coil. This principle is the basis for the operation of transformers, which are used to step up or step down AC voltages in power systems.
+Figure 1: Visualization of Transformer EMF
+Motional EMF is the electromotive force induced in a conductor moving through a magnetic field. According to Faraday's Law, the motion of the conductor through the magnetic field changes the magnetic flux through the conductor, inducing an EMF. This principle is used in devices like electric generators and certain types of sensors.
+θ is the angle between the magnetic field and the velocity of the conductor
+© 2025 Fields and Waves Visualization Lab
