@@ -16,10 +16,13 @@ app.add_middleware(
 class Query(BaseModel):
     query: str
 
+<<<<<<< HEAD
 @app.get("/")
 def health_check():
     return {"status": "ok"}
 
+=======
+>>>>>>> c636756 (Initial AI backend)
 @app.post("/ask")
 def ask_question(data: Query):
     try:
