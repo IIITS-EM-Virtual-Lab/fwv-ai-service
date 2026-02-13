@@ -1,8 +1,0 @@
-fastapi
-uvicorn[standard]
-faiss-cpu
-sentence-transformers
-numpy
-google-genai
-python-dotenv
-
