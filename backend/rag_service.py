@@ -10,10 +10,17 @@ META_PATH = os.path.join(BASE_DIR, "index", "metadata.pkl")
 
 index = None
 texts = None
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
+embedder = None  # ← changed: don't load at import time
 
 def load_index():
-    global index, texts
+    global index, texts, embedder
+
+    # ← changed: load model here, only on first request
+    if embedder is None:
+        print("Loading sentence transformer model...")
+        embedder = SentenceTransformer("all-MiniLM-L6-v2")
+        print("Model loaded.")
+
     if index is None:
         if not os.path.exists(INDEX_PATH):
             raise FileNotFoundError(f"Index not found at {INDEX_PATH}")
