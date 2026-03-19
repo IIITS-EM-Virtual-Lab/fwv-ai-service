@@ -16,6 +16,10 @@ app.add_middleware(
 class Query(BaseModel):
     query: str
 
+@app.get("/")
+def health_check():
+    return {"status": "ok"}
+
 @app.post("/ask")
 def ask_question(data: Query):
     try:
