@@ -125,6 +125,19 @@ def get_topic_link(topic: str) -> str | None:
     return f"<a href=\"{SITE_BASE_URL}{slug}\" target=\"_blank\" rel=\"noopener noreferrer\">{topic}</a>"
 
 
+def infer_topic_from_text(text: str) -> str | None:
+    if not text:
+        return None
+
+    normalized = re.sub(r"[^a-z0-9 ]+", " ", text.lower()).strip()
+    # Match more specific topics first
+    for topic in sorted(TOPIC_TO_PATH.keys(), key=len, reverse=True):
+        if topic in normalized:
+            return topic
+
+    return None
+
+
 def append_area_and_topic(answer: str, topic: str) -> str:
     area = TOPIC_TO_AREA.get(topic.lower() if isinstance(topic, str) else topic)
 
@@ -229,6 +242,7 @@ def generate_explanation(context: str, question: str, session_id: str = "anonymo
             )
 
         final_answer = response.text.strip()
+        inferred_topic = infer_topic_from_text(question)
 
         # -------------------------------------------------
         # Update conversation memory safely
@@ -240,6 +254,8 @@ def generate_explanation(context: str, question: str, session_id: str = "anonymo
                 state["current_subtopic"] = final_answer.split("visit:")[-1].strip()
             except:
                 pass
+        elif inferred_topic:
+            state["current_subtopic"] = inferred_topic
 
         return append_area_and_topic(final_answer, state["current_subtopic"])
 
