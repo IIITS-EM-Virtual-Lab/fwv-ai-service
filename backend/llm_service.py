@@ -1,4 +1,5 @@
 import os
+import re
 from dotenv import load_dotenv
 from pathlib import Path
 from google import genai
@@ -15,8 +16,17 @@ client = genai.Client(api_key=API_KEY)
 # -------------------------------------------------
 # Conversation State (IMPORTANT)
 # -------------------------------------------------
-current_subtopic = None
-last_bot_explanation = None
+conversation_states = {}
+
+def get_conversation_state(session_id: str):
+    if not session_id:
+        session_id = "anonymous"
+    if session_id not in conversation_states:
+        conversation_states[session_id] = {
+            "current_subtopic": None,
+            "last_bot_explanation": None,
+        }
+    return conversation_states[session_id]
 
 FWV_STRUCTURE = {
     "Vector Algebra": [
@@ -54,6 +64,12 @@ FWV_STRUCTURE = {
         "Energy",
         "Plane Wave Analysis",
         "Wave Reflection"
+    ],
+    
+    "Transmission Lines": [
+        "Types of Transmission Line",
+        "Characteristic Impedance",
+        "Smith Chart"
     ]
 }
 
@@ -63,11 +79,81 @@ TOPIC_TO_AREA = {
     for topic in topics
 }
 
+SITE_BASE_URL = os.getenv("FWV_SITE_URL", "https://www.fwvlab.com")
+
+TOPIC_TO_PATH = {
+    "scalars and vectors": "/scalars-and-vectors",
+    "vectors": "/scalars-and-vectors",
+    "addition": "/vector-addition",
+    "multiplication": "/vector-multiplication",
+    "triple product": "/triple-product",
+    "cylindrical coordinates": "/cylindrical-coordinates",
+    "spherical coordinates": "/spherical-coordinates",
+    "cartesian, cylindrical and spherical": "/cartesian-cylindrical-spherical",
+    "differential length, area and volume": "/vector-calculus-intro",
+    "del operator": "/del-operator",
+    "intro": "/electrostatics-intro",
+    "electric field & flux": "/electric-field-and-flux-density",
+    "electric potential": "/electric-potential",
+    "electric dipole": "/electric-dipole",
+    "gauss law": "/gauss-law-contd",
+    "magnetism": "/gauss-law-magnetism",
+    "faraday law": "/faraday-law",
+    "ampere law": "/ampere-law",
+    "displacement current": "/displacement-current",
+    "time varying potential": "/time-varying-potential",
+    "emf": "/transformer-motional-emf",
+    "types of waves": "/types-of-waves",
+    "wave power": "/wave-power-energy",
+    "energy": "/wave-power-energy",
+    "plane wave analysis": "/plane-wave-analysis",
+    "wave reflection": "/wave-reflection",
+    "types of transmission line": "/types-of-transmission-line",
+    "characteristic impedance": "/characteristic-impedance",
+    "smith chart": "/smith-chart",
+}
+
+
+def get_topic_link(topic: str) -> str | None:
+    if not topic:
+        return None
+
+    slug = TOPIC_TO_PATH.get(topic.lower())
+    if not slug:
+        return None
+
+    return f"<a href=\"{SITE_BASE_URL}{slug}\" target=\"_blank\" rel=\"noopener noreferrer\">{topic}</a>"
+
+
+def infer_topic_from_text(text: str) -> str | None:
+    if not text:
+        return None
+
+    normalized = re.sub(r"[^a-z0-9 ]+", " ", text.lower()).strip()
+    # Match more specific topics first
+    for topic in sorted(TOPIC_TO_PATH.keys(), key=len, reverse=True):
+        if topic in normalized:
+            return topic
+
+    return None
+
+
 def append_area_and_topic(answer: str, topic: str) -> str:
-    area = TOPIC_TO_AREA.get(topic)
+    area = TOPIC_TO_AREA.get(topic.lower() if isinstance(topic, str) else topic)
+
+    if "To learn more, visit:" in answer:
+        answer = re.sub(r"To learn more, visit:.*$", "", answer).strip()
+
+    link = get_topic_link(topic)
+    if link:
+        if answer and not answer.endswith("."):
+            answer = answer + "."
+        answer = f"{answer}\n\nTo learn more, visit: {link}"
+    elif topic and area:
+        answer = f"{answer}\n\nTo learn more, visit: {topic}"
 
     if not area:
-        return answer  # safety fallback
+        return answer
 
     return (
         f"{answer}\n\n"
@@ -79,8 +165,10 @@ def append_area_and_topic(answer: str, topic: str) -> str:
 # -------------------------------------------------
 # Main Tutor Function
 # -------------------------------------------------
-def generate_explanation(context: str, question: str) -> str:
-    global current_subtopic, last_bot_explanation
+def generate_explanation(context: str, question: str, session_id: str = "anonymous") -> str:
+    state = get_conversation_state(session_id)
+    current_subtopic = state["current_subtopic"]
+    last_bot_explanation = state["last_bot_explanation"]
 
     # -------------------------------------------------
     # SYSTEM INSTRUCTION (THE BRAIN)
@@ -131,6 +219,7 @@ def generate_explanation(context: str, question: str) -> str:
 
     IMPORTANT:
     - Stay within the current topic.
+    - If the user asks for a new topic, update the current topic and teach that.
     - Adapt explanation depth based on the user's intent.
     - Keep it very brief (1-2 sentences).
     - Ensure the explanation has full meaning and does not cut off.
@@ -153,19 +242,22 @@ def generate_explanation(context: str, question: str) -> str:
             )
 
         final_answer = response.text.strip()
+        inferred_topic = infer_topic_from_text(question)
 
         # -------------------------------------------------
         # Update conversation memory safely
         # -------------------------------------------------
         if "To learn more, visit:" in final_answer:
-            last_bot_explanation = final_answer
+            state["last_bot_explanation"] = final_answer
             # Extract subtopic name (best-effort)
             try:
-                current_subtopic = final_answer.split("visit:")[-1].strip()
+                state["current_subtopic"] = final_answer.split("visit:")[-1].strip()
             except:
                 pass
+        elif inferred_topic:
+            state["current_subtopic"] = inferred_topic
 
-        return append_area_and_topic(final_answer, current_subtopic)
+        return append_area_and_topic(final_answer, state["current_subtopic"])
 
     except Exception as e:
         print(f"Gemini API Error: {e}")

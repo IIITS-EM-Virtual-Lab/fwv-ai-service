@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,16 +17,14 @@ app.add_middleware(
 
 class Query(BaseModel):
     query: str
-
-@app.get("/")
-def health_check():
-    return {"status": "ok"}
+    user_id: Optional[str] = None
+    session_id: Optional[str] = None
 
 @app.post("/ask")
 def ask_question(data: Query):
     try:
-        # Pass the query to your RAG service
-        answer = get_answer(data.query)
+        session_id = data.session_id or data.user_id or "anonymous"
+        answer = get_answer(data.query, session_id=session_id)
         return {"answer": answer}
     except Exception as e:
         # Check if it's a rate limit error

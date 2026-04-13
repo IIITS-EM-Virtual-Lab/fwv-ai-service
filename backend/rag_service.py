@@ -28,7 +28,7 @@ def load_index():
         with open(META_PATH, "rb") as f:
             texts = pickle.load(f)
 
-def get_answer(question: str, top_k=3):
+def get_answer(question: str, session_id: str = "anonymous", top_k=3):
     load_index()
 
     query_vector = embedder.encode([question])
@@ -37,4 +37,4 @@ def get_answer(question: str, top_k=3):
     chunks = [texts[i] for i in indices[0]]
     context = "\n\n".join(chunks)
 
-    return generate_explanation(context, question)
+    return generate_explanation(context, question, session_id=session_id)

@@ -214,6 +214,16 @@ function handleUserMessage(message) {
 
 /* ================= Gemini RAG Call ================= */
 
+function getChatSessionId() {
+    const storageKey = 'fwv_chat_session_id';
+    let sessionId = localStorage.getItem(storageKey);
+    if (!sessionId) {
+        sessionId = `anon-${window.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2, 12)}`;
+        localStorage.setItem(storageKey, sessionId);
+    }
+    return sessionId;
+}
+
 async function askGemini(question) {
     showTyping();
 
@@ -221,7 +231,7 @@ async function askGemini(question) {
         const response = await fetch("https://fwvlab-fwv-ai-service.hf.space/ask", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query: question })
+            body: JSON.stringify({ query: question, session_id: getChatSessionId() })
         });
 
         const data = await response.json();
