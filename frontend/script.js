@@ -1,6 +1,14 @@
 const chatBox = document.getElementById("chat-box");
 const userInput = document.getElementById("userInput");
 
+/* ================= Session ID ================= */
+
+let sessionId = localStorage.getItem("fwv_session_id");
+if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    localStorage.setItem("fwv_session_id", sessionId);
+}
+
 /* ================= Theme Toggle ================= */
 
 function toggleTheme() {
@@ -221,7 +229,10 @@ async function askGemini(question) {
         const response = await fetch("http://127.0.0.1:8000/ask", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query: question })
+            body: JSON.stringify({
+                query: question,
+                session_id: sessionId   // ✅ Send unique session ID with every request
+            })
         });
 
         const data = await response.json();
