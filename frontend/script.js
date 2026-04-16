@@ -1,7 +1,6 @@
 const chatBox = document.getElementById("chat-box");
 const userInput = document.getElementById("userInput");
 
-<<<<<<< HEAD
 /* ================= Session ID ================= */
 
 let sessionId = localStorage.getItem("fwv_session_id");
@@ -10,8 +9,6 @@ if (!sessionId) {
     localStorage.setItem("fwv_session_id", sessionId);
 }
 
-=======
->>>>>>> 29207854a502315a29271e46417fd780acab5005
 /* ================= Theme Toggle ================= */
 
 function toggleTheme() {
@@ -225,24 +222,10 @@ function handleUserMessage(message) {
 
 /* ================= Gemini RAG Call ================= */
 
-<<<<<<< HEAD
-=======
-function getChatSessionId() {
-    const storageKey = 'fwv_chat_session_id';
-    let sessionId = localStorage.getItem(storageKey);
-    if (!sessionId) {
-        sessionId = `anon-${window.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2, 12)}`;
-        localStorage.setItem(storageKey, sessionId);
-    }
-    return sessionId;
-}
-
->>>>>>> 29207854a502315a29271e46417fd780acab5005
 async function askGemini(question) {
     showTyping();
 
     try {
-<<<<<<< HEAD
         const response = await fetch("http://127.0.0.1:8000/ask", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -250,12 +233,6 @@ async function askGemini(question) {
                 query: question,
                 session_id: sessionId   // ✅ Send unique session ID with every request
             })
-=======
-        const response = await fetch("https://fwvlab-fwv-ai-service.hf.space/ask", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query: question, session_id: getChatSessionId() })
->>>>>>> 29207854a502315a29271e46417fd780acab5005
         });
 
         const data = await response.json();

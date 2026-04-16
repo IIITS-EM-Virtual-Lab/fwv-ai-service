@@ -10,9 +10,7 @@ META_PATH = os.path.join(BASE_DIR, "index", "metadata.pkl")
 
 index = None
 texts = None
-<<<<<<< HEAD
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
-
 
 def load_index():
     """Loads the FAISS index and metadata from disk (once per process)."""
@@ -61,33 +59,3 @@ def get_answer(question: str, session_id: str = "anonymous", top_k: int = 5) -> 
 
     # ✅ FIX: Pass session_id through so each user has isolated conversation state
     return generate_explanation(context, question, session_id)
-=======
-embedder = None  # ← changed: don't load at import time
-
-def load_index():
-    global index, texts, embedder
-
-    # ← changed: load model here, only on first request
-    if embedder is None:
-        print("Loading sentence transformer model...")
-        embedder = SentenceTransformer("all-MiniLM-L6-v2")
-        print("Model loaded.")
-
-    if index is None:
-        if not os.path.exists(INDEX_PATH):
-            raise FileNotFoundError(f"Index not found at {INDEX_PATH}")
-        index = faiss.read_index(INDEX_PATH)
-        with open(META_PATH, "rb") as f:
-            texts = pickle.load(f)
-
-def get_answer(question: str, session_id: str = "anonymous", top_k=3):
-    load_index()
-
-    query_vector = embedder.encode([question])
-    _, indices = index.search(query_vector, top_k)
-
-    chunks = [texts[i] for i in indices[0]]
-    context = "\n\n".join(chunks)
-
-    return generate_explanation(context, question, session_id=session_id)
->>>>>>> 29207854a502315a29271e46417fd780acab5005
