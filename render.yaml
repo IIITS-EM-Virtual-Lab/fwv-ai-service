@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: fwv-ai-service
+    runtime: python
+    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt"
+    startCommand: "uvicorn backend.app:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+    healthCheckPath: /
+```
+
+### Step 2 — Update `requirements.txt`
+
+Replace your current `requirements.txt` with this — it installs torch CPU-only which is much smaller and faster:
+```
+fastapi
+uvicorn
+python-dotenv
+requests
+beautifulsoup4
+faiss-cpu
+google-genai
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.2.0+cpu
+sentence-transformers
