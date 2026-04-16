@@ -65,6 +65,7 @@ FWV_STRUCTURE = {
         "Plane Wave Analysis",
         "Wave Reflection"
     ],
+    
     "Transmission Lines": [
         "Types of Transmission Line",
         "Characteristic Impedance",
@@ -113,67 +114,23 @@ TOPIC_TO_PATH = {
 }
 
 
-def normalize_text(text: str) -> str:
-    return re.sub(r"[^a-z0-9 ]+", " ", text.lower()).strip()
-
-
-def normalize_topic_key(topic: str | None) -> str | None:
+def get_topic_link(topic: str) -> str | None:
     if not topic:
         return None
 
-    normalized = normalize_text(topic)
-    normalized = re.sub(r"\s+", " ", normalized)
-
-    alias_map = {
-        "faradays law": "faraday law",
-        "faraday s law": "faraday law",
-        "faraday law": "faraday law",
-        "faraday s": "faraday law",
-        "smithchart": "smith chart",
-        "smith chart": "smith chart",
-        "ampere s law": "ampere law",
-        "amperes law": "ampere law",
-        "displacement current": "displacement current",
-    }
-
-    for key, value in alias_map.items():
-        if normalized == key or key in normalized:
-            return value
-
-    return normalized
-
-
-def get_topic_link(topic: str | None) -> str | None:
-    """Returns an HTML anchor tag for the given topic, or None if not found."""
-    if not topic:
-        return None
-
-    topic_key = normalize_topic_key(topic)
-    if not topic_key:
-        return None
-
-    slug = TOPIC_TO_PATH.get(topic_key)
+    slug = TOPIC_TO_PATH.get(topic.lower())
     if not slug:
         return None
 
-    return f'<a href="{SITE_BASE_URL}{slug}" target="_blank" rel="noopener noreferrer">{topic_key.title()}</a>'
+    return f"<a href=\"{SITE_BASE_URL}{slug}\" target=\"_blank\" rel=\"noopener noreferrer\">{topic}</a>"
 
 
 def infer_topic_from_text(text: str) -> str | None:
-    """
-    Tries to infer a known topic key from arbitrary text.
-    Returns the matched topic key string or None.
-    """
     if not text:
         return None
 
-    normalized = normalize_text(text)
-    normalized = re.sub(r"\s+", " ", normalized)
-    topic_key = normalize_topic_key(normalized)
-    if topic_key in TOPIC_TO_PATH:
-        return topic_key
-
-    # Greedy match: longest topic name wins
+    normalized = re.sub(r"[^a-z0-9 ]+", " ", text.lower()).strip()
+    # Match more specific topics first
     for topic in sorted(TOPIC_TO_PATH.keys(), key=len, reverse=True):
         if topic in normalized:
             return topic
@@ -181,54 +138,34 @@ def infer_topic_from_text(text: str) -> str | None:
     return None
 
 
-def append_area_and_topic(answer: str, topic: str | None) -> str:
-    """
-    Appends a 'To learn more' link and area/topic labels to the answer.
-    Safely handles None topic so no KeyError or broken link is produced.
-    """
-    # Strip any previously injected link to avoid duplication
+def append_area_and_topic(answer: str, topic: str) -> str:
+    area = TOPIC_TO_AREA.get(topic.lower() if isinstance(topic, str) else topic)
+
     if "To learn more, visit:" in answer:
-        answer = re.sub(r"To learn more, visit:.*$", "", answer, flags=re.DOTALL).strip()
+        answer = re.sub(r"To learn more, visit:.*$", "", answer).strip()
 
-    if not topic:
-        # No topic identified — return answer as-is with a generic fallback
-        answer = answer.rstrip(".")
-        return f"{answer}.\n\nPlease select a topic from the sidebar to explore the FWV Lab."
-
-    area = TOPIC_TO_AREA.get(topic.lower())
     link = get_topic_link(topic)
-
-    # Ensure answer ends with a period before appending
-    if answer and not answer.endswith("."):
-        answer = answer + "."
-
     if link:
+        if answer and not answer.endswith("."):
+            answer = answer + "."
         answer = f"{answer}\n\nTo learn more, visit: {link}"
-    else:
-        # Topic exists but has no registered path — show plain text fallback
-        answer = f"{answer}\n\nTo learn more, visit: {topic.title()}"
+    elif topic and area:
+        answer = f"{answer}\n\nTo learn more, visit: {topic}"
 
-    if area:
-        answer = f"{answer}\n\nArea: {area}\nTopic: {topic.title()}"
+    if not area:
+        return answer
 
-    return answer
+    return (
+        f"{answer}\n\n"
+        f"Area: {area}\n"
+        f"Topic: {topic}"
+    )
 
 
 # -------------------------------------------------
 # Main Tutor Function
 # -------------------------------------------------
 def generate_explanation(context: str, question: str, session_id: str = "anonymous") -> str:
-    """
-    Generates a tutoring response using Gemini, maintaining per-session state.
-
-    Args:
-        context:    RAG-retrieved text relevant to the question.
-        question:   The user's message.
-        session_id: Unique identifier per user session (must be passed from caller).
-
-    Returns:
-        A formatted string response with optional topic link appended.
-    """
     state = get_conversation_state(session_id)
     current_subtopic = state["current_subtopic"]
     last_bot_explanation = state["last_bot_explanation"]
@@ -258,8 +195,7 @@ def generate_explanation(context: str, question: str, session_id: str = "anonymo
         - For word-level doubts: explain the word based on its usage in the last explanation.
 
     NAVIGATION:
-        - Do NOT include any "To learn more" or link text in your response.
-        - The system will append the correct link automatically.
+        - End academic responses with: "To learn more, visit: <Current Subtopic>"
 
     OUTPUT STYLE:
         - Natural teaching tone. No labels, no headings, no bullet points.
@@ -287,7 +223,6 @@ def generate_explanation(context: str, question: str, session_id: str = "anonymo
     - Adapt explanation depth based on the user's intent.
     - Keep it very brief (1-2 sentences).
     - Ensure the explanation has full meaning and does not cut off.
-    - Do NOT include any links or "To learn more" text. The system handles that.
     """
 
     try:
@@ -307,32 +242,26 @@ def generate_explanation(context: str, question: str, session_id: str = "anonymo
             )
 
         final_answer = response.text.strip()
-
-        # Strip any "To learn more" the model may have hallucinated despite instructions
-        if "To learn more" in final_answer:
-            final_answer = re.sub(r"To learn more.*$", "", final_answer, flags=re.DOTALL).strip()
-
-        # -------------------------------------------------
-        # Update conversation state
-        # -------------------------------------------------
         inferred_topic = infer_topic_from_text(question)
 
-        if inferred_topic:
+        # -------------------------------------------------
+        # Update conversation memory safely
+        # -------------------------------------------------
+        if "To learn more, visit:" in final_answer:
+            state["last_bot_explanation"] = final_answer
+            # Extract subtopic name (best-effort)
+            try:
+                state["current_subtopic"] = final_answer.split("visit:")[-1].strip()
+            except:
+                pass
+        elif inferred_topic:
             state["current_subtopic"] = inferred_topic
-        # If no topic inferred from question, retain the existing subtopic (follow-up flow)
-
-        # Always update last explanation for follow-up context
-        state["last_bot_explanation"] = final_answer
-
-        # Debug log (remove in production)
-        print(f"[DEBUG] session={session_id} | subtopic={state['current_subtopic']} | answer={final_answer[:60]}...")
 
         return append_area_and_topic(final_answer, state["current_subtopic"])
 
     except Exception as e:
-        print(f"[ERROR] Gemini API Error for session={session_id}: {e}")
-        return "I'm having trouble accessing the FWV Lab notes right now. Please try again shortly."
-
+        print(f"Gemini API Error: {e}")
+        return "I'm having trouble accessing the FWV Lab notes right now."
 
 # -------------------------------------------------
 # Example Terminal Test
@@ -356,8 +285,8 @@ if __name__ == "__main__":
     while True:
         user_input = input("\nYou: ")
         if user_input.lower() in ["exit", "quit"]:
-            print("FWV Bot: Bye! Keep learning Fields & Waves.")
+            print("FWV Bot: Bye! 👋 Keep learning Fields & Waves.")
             break
 
-        reply = generate_explanation(sample_context, user_input, session_id="test-user-001")
+        reply = generate_explanation(sample_context, user_input)
         print("\nFWV Bot:", reply)
