@@ -1,6 +1,6 @@
 import requests
 
-GROQ_API_KEY = "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"  # your groq key
+GROQ_API_KEY = ""  # your groq key
 
 response = requests.post(
     "https://api.groq.com/openai/v1/chat/completions",
