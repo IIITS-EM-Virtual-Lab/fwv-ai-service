@@ -1,5 +1,6 @@
 import os
 import re
+import requests
 from dotenv import load_dotenv
 from pathlib import Path
 from google import genai
@@ -10,11 +11,15 @@ from google import genai
 env_path = Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
-API_KEY = os.getenv("GEMINI_API_KEY")
-client = genai.Client(api_key=API_KEY)
+GEMINI_API_KEY_1 = os.getenv("GEMINI_API_KEY_1")
+GEMINI_API_KEY_2 = os.getenv("GEMINI_API_KEY_2")
+GROQ_API_KEY_1 = os.getenv("GROQ_API_KEY_1")
+GROQ_API_KEY_2 = os.getenv("GROQ_API_KEY_2")
+
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 # -------------------------------------------------
-# Conversation State (IMPORTANT)
+# Conversation State
 # -------------------------------------------------
 conversation_states = {}
 
@@ -144,7 +149,6 @@ def normalize_topic_key(topic: str | None) -> str | None:
 
 
 def get_topic_link(topic: str | None) -> str | None:
-    """Returns an HTML anchor tag for the given topic, or None if not found."""
     if not topic:
         return None
 
@@ -156,14 +160,10 @@ def get_topic_link(topic: str | None) -> str | None:
     if not slug:
         return None
 
-    return f'<a href="{SITE_BASE_URL}{slug}" target="_blank" rel="noopener noreferrer">{topic_key.title()}</a>'
+    return f'<a href="{SITE_BASE_URL}{slug}">{topic_key.title()}</a>'
 
 
 def infer_topic_from_text(text: str) -> str | None:
-    """
-    Tries to infer a known topic key from arbitrary text.
-    Returns the matched topic key string or None.
-    """
     if not text:
         return None
 
@@ -173,38 +173,30 @@ def infer_topic_from_text(text: str) -> str | None:
     if topic_key in TOPIC_TO_PATH:
         return topic_key
 
-    # Greedy match: longest topic name wins
     for topic in sorted(TOPIC_TO_PATH.keys(), key=len, reverse=True):
         if topic in normalized:
             return topic
 
     return None
 
+
 def append_area_and_topic(answer: str, topic: str | None) -> str:
-    """
-    Appends a 'To learn more' link and area/topic labels to the answer.
-    Safely handles None topic so no KeyError or broken link is produced.
-    """
-    # Strip any previously injected link to avoid duplication
     if "To learn more, visit:" in answer:
         answer = re.sub(r"To learn more, visit:.*$", "", answer, flags=re.DOTALL).strip()
 
     if not topic:
-        # No topic identified — return answer as-is with a generic fallback
         answer = answer.rstrip(".")
         return f"{answer}.\n\nPlease select a topic from the sidebar to explore the FWV Lab."
 
     area = TOPIC_TO_AREA.get(topic.lower())
     link = get_topic_link(topic)
 
-    # Ensure answer ends with a period before appending
     if answer and not answer.endswith("."):
         answer = answer + "."
 
     if link:
         answer = f"{answer}\n\nTo learn more, visit: {link}"
     else:
-        # Topic exists but has no registered path — show plain text fallback
         answer = f"{answer}\n\nTo learn more, visit: {topic.title()}"
 
     if area:
@@ -218,12 +210,13 @@ def append_area_and_topic(answer: str, topic: str | None) -> str:
 # -------------------------------------------------
 def generate_explanation(context: str, question: str, session_id: str = "anonymous") -> str:
     """
-    Generates a tutoring response using Gemini, maintaining per-session state.
+    Generates a tutoring response using Groq (Llama-3.3-70b),
+    maintaining per-session conversation state.
 
     Args:
         context:    RAG-retrieved text relevant to the question.
         question:   The user's message.
-        session_id: Unique identifier per user session (must be passed from caller).
+        session_id: Unique identifier per user session.
 
     Returns:
         A formatted string response with optional topic link appended.
@@ -232,9 +225,6 @@ def generate_explanation(context: str, question: str, session_id: str = "anonymo
     current_subtopic = state["current_subtopic"]
     last_bot_explanation = state["last_bot_explanation"]
 
-    # -------------------------------------------------
-    # SYSTEM INSTRUCTION (THE BRAIN)
-    # -------------------------------------------------
     sys_instruct = """
     You are a patient, adaptive teaching assistant for the Fields and Waves Visualisation Lab (FWV Lab).
 
@@ -264,9 +254,6 @@ def generate_explanation(context: str, question: str, session_id: str = "anonymo
         - Natural teaching tone. No labels, no headings, no bullet points.
     """
 
-    # -------------------------------------------------
-    # USER PROMPT (STATE AWARE)
-    # -------------------------------------------------
     user_prompt = f"""
     FWV Lab Context:
     {context}
@@ -289,48 +276,75 @@ def generate_explanation(context: str, question: str, session_id: str = "anonymo
     - Do NOT include any links or "To learn more" text. The system handles that.
     """
 
-    try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=user_prompt,
-            config={
-                "system_instruction": sys_instruct,
-                "temperature": 0.3,
-            }
-        )
+    def try_groq(api_key: str) -> str | None:
+        try:
+            response = requests.post(GROQ_URL, headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }, json={
+                "model": "llama-3.3-70b-versatile",
+                "messages": [
+                    {"role": "system", "content": sys_instruct},
+                    {"role": "user", "content": user_prompt}
+                ],
+                "max_tokens": 512,
+                "temperature": 0.3
+            }, timeout=30)
+            data = response.json()
+            if "choices" in data:
+                return data["choices"][0]["message"]["content"].strip()
+            return None
+        except Exception as e:
+            print(f"[WARN] Groq key failed: {e}")
+            return None
 
-        if not response.text:
-            return (
-                "I can help you with Fields and Waves topics from the FWV Lab notes.\n"
-                "Please choose a topic from the sidebar to continue."
+    def try_gemini(api_key: str) -> str | None:
+        try:
+            from google import genai
+            client = genai.Client(api_key=api_key)
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=user_prompt,
+                config={"system_instruction": sys_instruct, "temperature": 0.3}
             )
+            return response.text.strip() if response.text else None
+        except Exception as e:
+            print(f"[WARN] Gemini key failed: {e}")
+            return None
 
-        final_answer = response.text.strip()
+    # Fallback chain — tries each in order until one works
+    final_answer = None
 
-        # Strip any "To learn more" the model may have hallucinated despite instructions
-        if "To learn more" in final_answer:
-            final_answer = re.sub(r"To learn more.*$", "", final_answer, flags=re.DOTALL).strip()
+    print(f"[INFO] Trying Groq key 1...")
+    final_answer = try_groq(GROQ_API_KEY_1)
 
-        # -------------------------------------------------
-        # Update conversation state
-        # -------------------------------------------------
-        inferred_topic = infer_topic_from_text(question)
+    if not final_answer:
+        print(f"[INFO] Trying Groq key 2...")
+        final_answer = try_groq(GROQ_API_KEY_2)
 
-        if inferred_topic:
-            state["current_subtopic"] = inferred_topic
-        # If no topic inferred from question, retain the existing subtopic (follow-up flow)
+    if not final_answer:
+        print(f"[INFO] Trying Gemini key 1...")
+        final_answer = try_gemini(GEMINI_API_KEY_1)
 
-        # Always update last explanation for follow-up context
-        state["last_bot_explanation"] = final_answer
+    if not final_answer:
+        print(f"[INFO] Trying Gemini key 2...")
+        final_answer = try_gemini(GEMINI_API_KEY_2)
 
-        # Debug log (remove in production)
-        print(f"[DEBUG] session={session_id} | subtopic={state['current_subtopic']} | answer={final_answer[:60]}...")
+    if not final_answer:
+        return "I'm having trouble right now. All AI services are busy. Please try again shortly."
 
-        return append_area_and_topic(final_answer, state["current_subtopic"])
+    # Strip hallucinated links
+    if "To learn more" in final_answer:
+        final_answer = re.sub(r"To learn more.*$", "", final_answer, flags=re.DOTALL).strip()
 
-    except Exception as e:
-        print(f"[ERROR] Gemini API Error for session={session_id}: {e}")
-        return "I'm having trouble accessing the FWV Lab notes right now. Please try again shortly."
+    # Update state
+    inferred_topic = infer_topic_from_text(question)
+    if inferred_topic:
+        state["current_subtopic"] = inferred_topic
+    state["last_bot_explanation"] = final_answer
+
+    print(f"[DEBUG] session={session_id} | subtopic={state['current_subtopic']} | answer={final_answer[:60]}...")
+    return append_area_and_topic(final_answer, state["current_subtopic"])
 
 
 # -------------------------------------------------
