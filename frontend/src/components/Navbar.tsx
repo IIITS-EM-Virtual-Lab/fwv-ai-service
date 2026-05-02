@@ -186,6 +186,8 @@ const Navbar = () => {
   };
 
   const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
     dispatch(logout());
     navigate("/login");
     setShowUserDropdown(false);

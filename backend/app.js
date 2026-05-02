@@ -12,6 +12,7 @@ const quizRoutes = require('./routes/quiz');
 const quizResultRoutes = require('./routes/quizResultRoutes');
 const passwordResetRoutes = require('./routes/passwordResetRoutes');
 const feedbackRoutes = require("./routes/feedbackRoutes");
+const chatRoutes = require('./routes/chatRoutes');
 
 dotenv.config();
 
@@ -39,6 +40,7 @@ app.use("/api/feedback", feedbackRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/quizresult', quizResultRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

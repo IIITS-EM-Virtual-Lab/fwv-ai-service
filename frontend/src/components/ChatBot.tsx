@@ -1,22 +1,26 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Send, Sparkles, Zap, Hand, ChevronLeft, ChevronRight } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { selectCurrentToken, selectIsAuthenticated } from "@/store/slices/authSlice";
 
-const API_BASE_URL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-  ? "http://127.0.0.1:8000"       // local dev
-  : "https://fwvlab-fwv-ai-service.hf.space";  // production\
+const API_BASE_URL =
+  import.meta.env.VITE_BACKEND_API_URL ||
+  (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+    ? "http://localhost:5000"
+    : "https://fields-and-waves-visualization-lab.onrender.com");
+
+const CHATBOT_HIDDEN_ROUTES = ["/login", "/signup", "/forgot-password", "/reset-password"];
 
 export default function ChatBot() {
   const location = useLocation();
+  const navigate = useNavigate();
   const user = useSelector((state: RootState) => state.auth.client);
+  const token = useSelector(selectCurrentToken);
+  const isAuthenticated = useSelector(selectIsAuthenticated);
 
   // 🚫 Hide chatbot completely on quiz page
-  if (location.pathname.includes("quiz")) {
-    return null;
-  }
-
   const [isOpen, setIsOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const [messages, setMessages] = useState<
@@ -30,15 +34,14 @@ export default function ChatBot() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const waveIdRef = useRef(0);
+  const wasHiddenRouteRef = useRef(false);
+  const isHiddenRoute =
+    location.pathname.includes("quiz") ||
+    CHATBOT_HIDDEN_ROUTES.includes(location.pathname);
 
-  // ✅ Session ID — uses logged-in user ID if available, else UUID per browser
+  // Session ID is tied to the logged-in user.
   const getChatSessionId = (): string => {
-    if (user?._id) return `user-${user._id}`;
-    const existing = localStorage.getItem("fwv_chat_session_id");
-    if (existing) return existing;
-    const newId = `anon-${window.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2, 12)}`;
-    localStorage.setItem("fwv_chat_session_id", newId);
-    return newId;
+    return `user-${user?._id}`;
   };
 
   // Auto-scroll to bottom
@@ -55,6 +58,21 @@ export default function ChatBot() {
     }, 1000);
     return () => clearTimeout(waveTimeout);
   }, [isOpen, isVisible]);
+
+  useEffect(() => {
+    if (isHiddenRoute) {
+      wasHiddenRouteRef.current = true;
+      setIsOpen(false);
+      setPeekState("peeking");
+      return;
+    }
+
+    if (wasHiddenRouteRef.current) {
+      setIsVisible(true);
+      setPeekState("peeking");
+      wasHiddenRouteRef.current = false;
+    }
+  }, [isHiddenRoute]);
 
   // Create wave ripple effect
   const createWave = (x: number, y: number) => {
@@ -76,6 +94,15 @@ export default function ChatBot() {
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
+    if (!isAuthenticated || !token || !user?._id) {
+      setIsOpen(true);
+      setMessages((prev) => [
+        ...prev,
+        { role: "bot", text: "Please sign in to use Fieldora." },
+      ]);
+      return;
+    }
+
     const userMessage = input.trim();
     setMessages((prev) => [...prev, { role: "user", text: userMessage }]);
     setInput("");
@@ -94,15 +121,15 @@ export default function ChatBot() {
       const sessionId = getChatSessionId();
       console.log(`[ChatBot] session=${sessionId} | query=${userMessage}`);
 
-      const response = await fetch(`${API_BASE_URL}/ask`, {
+      const response = await fetch(`${API_BASE_URL}/api/chat/ask`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           query: userMessage,
           session_id: sessionId,   // ✅ Per-user session
-          user_id: user?._id,
         }),
       });
 
@@ -148,6 +175,15 @@ export default function ChatBot() {
       setPeekState("peeking");
     }
   };
+
+  const handleSignIn = () => {
+    navigate("/login");
+    setIsOpen(false);
+  };
+
+  if (isHiddenRoute) {
+    return null;
+  }
 
   // ✅ Renders bot text safely — converts \n to <br> and keeps anchor links clickable
   const renderBotText = (text: string) => {
@@ -219,7 +255,9 @@ export default function ChatBot() {
 
             <div className="peek-bubble">
               <div className="bubble-text">
-                {peekState === "peeking" ? "Hey there! 👋" : "Click me!"}
+                {isAuthenticated
+                  ? peekState === "peeking" ? "Hey there!" : "Click me!"
+                  : "Sign in to chat"}
               </div>
             </div>
           </div>
@@ -256,7 +294,7 @@ export default function ChatBot() {
                 <div className="header-title">Fieldora</div>
                 <div className="header-subtitle">
                   <span className="status-dot" />
-                  Your AI Field Guide ∿
+                  {isAuthenticated ? "Your AI Field Guide" : "Sign in required"}
                 </div>
               </div>
             </div>
@@ -267,7 +305,7 @@ export default function ChatBot() {
 
           {/* Messages */}
           <div className="messages-container">
-            {messages.length === 0 && (
+            {messages.length === 0 && isAuthenticated && (
               <div className="welcome-screen">
                 <div className="welcome-wave-icon">∿</div>
                 <div className="welcome-text">Ready to explore the electromagnetic universe?</div>
@@ -284,6 +322,17 @@ export default function ChatBot() {
                     </button>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {messages.length === 0 && !isAuthenticated && (
+              <div className="welcome-screen">
+                <div className="welcome-wave-icon">~</div>
+                <div className="welcome-text">Sign in to chat with Fieldora</div>
+                <div className="welcome-subtitle">Your account keeps the chatbot connected to your learning profile.</div>
+                <button onClick={handleSignIn} className="signin-chat-button">
+                  Sign in
+                </button>
               </div>
             )}
 
@@ -369,11 +418,13 @@ export default function ChatBot() {
                   }
                 }}
                 placeholder="Send a wave of curiosity..."
+                disabled={!isAuthenticated}
               />
               <button
-                onClick={sendMessage}
-                disabled={!input.trim() || loading}
+                onClick={isAuthenticated ? sendMessage : handleSignIn}
+                disabled={isAuthenticated && (!input.trim() || loading)}
                 className="send-button"
+                title={isAuthenticated ? "Send message" : "Sign in to use Fieldora"}
               >
                 <Send size={18} />
                 <span className="button-wave" />
@@ -939,6 +990,24 @@ export default function ChatBot() {
           transform: translateY(-2px);
         }
 
+        .signin-chat-button {
+          background: linear-gradient(135deg, #a855f7, #ec4899);
+          border: none;
+          color: white;
+          padding: 9px 18px;
+          border-radius: 18px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          box-shadow: 0 8px 20px rgba(168, 85, 247, 0.25);
+          transition: all 0.2s;
+        }
+
+        .signin-chat-button:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 24px rgba(168, 85, 247, 0.35);
+        }
+
         .message-wrapper { margin-bottom: 12px; animation: message-slide 0.3s ease-out; }
 
         @keyframes message-slide {
@@ -1081,6 +1150,11 @@ export default function ChatBot() {
         }
 
         .wave-input::placeholder { color: #c084fc; }
+
+        .wave-input:disabled {
+          cursor: not-allowed;
+          opacity: 0.65;
+        }
 
         /* ✅ Fixed: was "hheight" typo in original */
         .send-button {
