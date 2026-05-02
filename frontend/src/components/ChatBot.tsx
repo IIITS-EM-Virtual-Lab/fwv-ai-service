@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { X, Send, Sparkles, Zap, Hand, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, Send, Sparkles, Zap, Hand, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -12,6 +12,9 @@ const API_BASE_URL =
     : "https://fields-and-waves-visualization-lab.onrender.com");
 
 const CHATBOT_HIDDEN_ROUTES = ["/login", "/signup", "/forgot-password", "/reset-password"];
+
+const createChatThreadId = () =>
+  window.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2, 12);
 
 export default function ChatBot() {
   const location = useLocation();
@@ -31,6 +34,7 @@ export default function ChatBot() {
   const [isWaving, setIsWaving] = useState(false);
   const [peekState, setPeekState] = useState<"hidden" | "peeking" | "full">("peeking");
   const [waves, setWaves] = useState<Array<{ id: number; x: number; y: number }>>([]);
+  const [chatThreadId, setChatThreadId] = useState(createChatThreadId);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const waveIdRef = useRef(0);
@@ -41,7 +45,7 @@ export default function ChatBot() {
 
   // Session ID is tied to the logged-in user.
   const getChatSessionId = (): string => {
-    return `user-${user?._id}`;
+    return `user-${user?._id}-thread-${chatThreadId}`;
   };
 
   // Auto-scroll to bottom
@@ -58,6 +62,18 @@ export default function ChatBot() {
     }, 1000);
     return () => clearTimeout(waveTimeout);
   }, [isOpen, isVisible]);
+
+  useEffect(() => {
+    if (!user?._id) {
+      setMessages([]);
+      setInput("");
+      return;
+    }
+
+    setMessages([]);
+    setInput("");
+    setChatThreadId(createChatThreadId());
+  }, [user?._id]);
 
   useEffect(() => {
     if (isHiddenRoute) {
@@ -152,7 +168,7 @@ export default function ChatBot() {
     }
 
     setLoading(false);
-  }, [isAuthenticated, loading, token, user]);
+  }, [chatThreadId, isAuthenticated, loading, token, user]);
 
   const sendMessage = async () => {
     await sendPrompt(input);
@@ -200,6 +216,13 @@ export default function ChatBot() {
       setIsOpen(false);
       setPeekState("peeking");
     }
+  };
+
+  const handleNewChat = () => {
+    setMessages([]);
+    setInput("");
+    setLoading(false);
+    setChatThreadId(createChatThreadId());
   };
 
   const handleSignIn = () => {
@@ -324,9 +347,16 @@ export default function ChatBot() {
                 </div>
               </div>
             </div>
-            <button onClick={toggleChat} className="close-button">
-              <X size={20} />
-            </button>
+            <div className="header-actions">
+              {isAuthenticated && (
+                <button onClick={handleNewChat} className="header-action-button" title="Start a new chat">
+                  <RefreshCw size={17} />
+                </button>
+              )}
+              <button onClick={toggleChat} className="close-button">
+                <X size={20} />
+              </button>
+            </div>
           </div>
 
           {/* Messages */}
@@ -946,6 +976,32 @@ export default function ChatBot() {
           cursor: pointer;
           transition: all 0.2s;
           flex-shrink: 0;
+        }
+
+        .header-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .header-action-button {
+          background: rgba(255, 255, 255, 0.2);
+          border: none;
+          color: white;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s;
+          flex-shrink: 0;
+        }
+
+        .header-action-button:hover {
+          background: rgba(255, 255, 255, 0.3);
+          transform: rotate(-25deg);
         }
 
         .close-button:hover {

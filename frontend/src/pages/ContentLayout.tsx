@@ -101,7 +101,7 @@ Tell the student what controls or parameters to try changing, what visual change
 
           <main className="px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto">
             {showSidebar && (
-              <div className="mb-5 flex flex-wrap justify-end gap-3">
+              <div className="sticky top-24 z-30 mb-5 flex flex-wrap justify-end gap-3 border-b border-slate-200 bg-white/95 py-3 backdrop-blur">
                 <button
                   type="button"
                   onClick={handleAskAboutPage}
