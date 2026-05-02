@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { X, Send, Sparkles, Zap, Hand, ChevronLeft, ChevronRight } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
@@ -91,10 +91,11 @@ export default function ChatBot() {
     }
   };
 
-  const sendMessage = async () => {
-    if (!input.trim() || loading) return;
+  const sendPrompt = useCallback(async (prompt: string) => {
+    if (!prompt.trim() || loading) return;
 
     if (!isAuthenticated || !token || !user?._id) {
+      setIsVisible(true);
       setIsOpen(true);
       setMessages((prev) => [
         ...prev,
@@ -103,7 +104,7 @@ export default function ChatBot() {
       return;
     }
 
-    const userMessage = input.trim();
+    const userMessage = prompt.trim();
     setMessages((prev) => [...prev, { role: "user", text: userMessage }]);
     setInput("");
     setLoading(true);
@@ -151,7 +152,32 @@ export default function ChatBot() {
     }
 
     setLoading(false);
+  }, [isAuthenticated, loading, token, user]);
+
+  const sendMessage = async () => {
+    await sendPrompt(input);
   };
+
+  useEffect(() => {
+    const handleFieldoraPrompt = (event: Event) => {
+      const { prompt, autoSend = true } =
+        (event as CustomEvent<{ prompt?: string; autoSend?: boolean }>).detail || {};
+      if (!prompt) return;
+
+      setIsVisible(true);
+      setIsOpen(true);
+      setPeekState("full");
+
+      if (autoSend) {
+        void sendPrompt(prompt);
+      } else {
+        setInput(prompt);
+      }
+    };
+
+    window.addEventListener("fieldora:prompt", handleFieldoraPrompt);
+    return () => window.removeEventListener("fieldora:prompt", handleFieldoraPrompt);
+  }, [sendPrompt]);
 
   const toggleChat = () => {
     if (!isOpen) {

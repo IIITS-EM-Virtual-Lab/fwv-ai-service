@@ -87,6 +87,8 @@ const ChapterQuiz = () => {
   const [showReview, setShowReview]     = useState(false);
   const [userAnswers, setUserAnswers]   = useState<UserAnswer[]>([]);
   const [submitted, setSubmitted]       = useState(false);
+  const [aiTutorAnswers, setAiTutorAnswers] = useState<Record<string, string>>({});
+  const [aiTutorLoadingId, setAiTutorLoadingId] = useState<string | null>(null);
 
   // ── Timer state ─────────────────────────────────────────────
   const [timeLeft, setTimeLeft]         = useState<number>(0);
@@ -270,6 +272,78 @@ const ChapterQuiz = () => {
       ? question.correctAnswer[0]
       : question.correctAnswer;
 
+  const askAiTutor = async (question: Question, selectedAnswer: string) => {
+    if (!token || !currentUser?._id) {
+      alert('Please sign in to use the AI Quiz Tutor.');
+      return;
+    }
+
+    const answerKey = `${question._id}:${selectedAnswer}`;
+    if (aiTutorAnswers[answerKey]) return;
+
+    setAiTutorLoadingId(answerKey);
+
+    try {
+      const correctAnswer = getCorrectAnswer(question);
+      const response = await fetch(`${API}/api/chat/ask`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          session_id: `quiz-tutor-${currentUser._id}`,
+          query: `Act as an AI quiz tutor for an electromagnetic fields and waves student.
+Module: ${quiz?.module}
+Chapter: ${quiz?.chapter}
+Difficulty: ${question.difficulty}
+Question: ${question.question}
+Student answer: ${selectedAnswer}
+Correct answer: ${correctAnswer}
+Existing explanation: ${question.explanation || 'Not provided'}
+
+Explain why the student's answer is wrong or incomplete, why the correct answer works, and give one quick memory tip. Keep the response clear and concise.`,
+        }),
+      });
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const data = await response.json();
+      setAiTutorAnswers((prev) => ({
+        ...prev,
+        [answerKey]: data.answer || 'No AI explanation was returned.',
+      }));
+    } catch (error) {
+      console.error('AI tutor error:', error);
+      setAiTutorAnswers((prev) => ({
+        ...prev,
+        [answerKey]: 'AI Tutor is unavailable right now. Please try again in a bit.',
+      }));
+    } finally {
+      setAiTutorLoadingId(null);
+    }
+  };
+
+  const renderAiTutorPanel = (question: Question, selectedAnswer: string) => {
+    const answerKey = `${question._id}:${selectedAnswer}`;
+    const aiAnswer = aiTutorAnswers[answerKey];
+    const isLoadingTutor = aiTutorLoadingId === answerKey;
+
+    return (
+      <div className="ai-tutor-panel">
+        <button
+          type="button"
+          className="ai-tutor-btn"
+          onClick={() => askAiTutor(question, selectedAnswer)}
+          disabled={isLoadingTutor}
+        >
+          {isLoadingTutor ? 'AI Tutor is thinking...' : 'Ask AI Tutor'}
+        </button>
+        {aiAnswer && <div className="ai-tutor-answer">{aiAnswer}</div>}
+      </div>
+    );
+  };
+
   const getDifficultyCounts = () => {
     if (!quiz) return { easy: 0, medium: 0, hard: 0 };
     return {
@@ -360,6 +434,9 @@ const ChapterQuiz = () => {
                 <div className="review-explanation">
                   <strong>Explanation:</strong> {question.explanation}
                 </div>
+              )}
+              {userAnswer && !userAnswer.isCorrect && (
+                renderAiTutorPanel(question, userAnswer.selectedAnswer)
               )}
               {question.solutionImageUrl && (
                 <div className="solution-image"><img src={question.solutionImageUrl} alt="Solution" /></div>
@@ -533,6 +610,10 @@ const ChapterQuiz = () => {
               );
             })}
           </div>
+
+          {answered && !isCorrect && currentQuestion && (
+            renderAiTutorPanel(currentQuestion, skipped ? 'SKIPPED' : selectedOption || 'Not answered')
+          )}
 
           <div className="quiz-footer">
             <div className="progress">
