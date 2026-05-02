@@ -1,0 +1,31 @@
+name: Keep Hugging Face Space Awake
+
+on:
+  schedule:
+    # Hugging Face free Spaces currently sleep after long inactivity.
+    # A 6-hour ping is intentionally light but keeps the Space warm for demos.
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+jobs:
+  ping-space:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      HF_SPACE_URL: https://fwvlab-fwv-ai-service.hf.space
+
+    steps:
+      - name: Ping chatbot Space
+        run: |
+          set -e
+
+          echo "Pinging $HF_SPACE_URL"
+
+          if curl --fail --silent --show-error --max-time 60 "$HF_SPACE_URL/health"; then
+            echo "Health endpoint responded."
+            exit 0
+          fi
+
+          echo "Health endpoint unavailable, trying Space root."
+          curl --fail --silent --show-error --max-time 60 "$HF_SPACE_URL/"
+          echo "Space root responded."
