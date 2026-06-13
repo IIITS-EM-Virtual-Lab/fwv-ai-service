@@ -212,12 +212,10 @@ def generate_explanation(context: str, question: str, session_id: str = "anonymo
     """
     Generates a tutoring response using Groq (Llama-3.3-70b),
     maintaining per-session conversation state.
-
     Args:
         context:    RAG-retrieved text relevant to the question.
         question:   The user's message.
         session_id: Unique identifier per user session.
-
     Returns:
         A formatted string response with optional topic link appended.
     """
@@ -227,29 +225,23 @@ def generate_explanation(context: str, question: str, session_id: str = "anonymo
 
     sys_instruct = """
     You are a patient, adaptive teaching assistant for the Fields and Waves Visualisation Lab (FWV Lab).
-
     YOUR ROLE:
         - You are a tutor. Help students learn concepts step by step.
         - SIZE CONSTRAINT: Provide the full core meaning in exactly ONE or TWO short, complete sentences.
         - COMPLETENESS: Never stop in the middle of a sentence. Finish your thought.
-
     SOCIAL BEHAVIOR:
         - Respond naturally to greetings (e.g., hi, hello). Do not teach during small talk.
-
     ACADEMIC TEACHING RULES:
         - Answer ONLY if content exists in the provided FWV Lab context.
         - Stay within the current topic unless the user explicitly changes it.
         - Think internally and NEVER reveal your reasoning. Avoid equations unless asked.
-
     FOLLOW-UP INTELLIGENCE:
         - For easy/layman requests: simplify the idea in 1-2 sentences.
         - For examples: give one short intuitive example.
         - For word-level doubts: explain the word based on its usage in the last explanation.
-
     NAVIGATION:
         - Do NOT include any "To learn more" or link text in your response.
         - The system will append the correct link automatically.
-
     OUTPUT STYLE:
         - Natural teaching tone. No labels, no headings, no bullet points.
     """
@@ -257,16 +249,12 @@ def generate_explanation(context: str, question: str, session_id: str = "anonymo
     user_prompt = f"""
     FWV Lab Context:
     {context}
-
     Current Topic:
     {current_subtopic if current_subtopic else "Not set"}
-
     Last Explanation Given:
     {last_bot_explanation if last_bot_explanation else "None"}
-
     User Message:
     {question}
-
     IMPORTANT:
     - Stay within the current topic.
     - If the user asks for a new topic, update the current topic and teach that.
@@ -355,11 +343,9 @@ if __name__ == "__main__":
     Displacement Current:
     Introduced by Maxwell to explain how a changing electric field can produce
     a magnetic field, even in the absence of conduction current.
-
     Gauss Law:
     The total electric flux through a closed surface is proportional
     to the charge enclosed.
-
     Faraday Law:
     A changing magnetic field induces an electric field.
     """
