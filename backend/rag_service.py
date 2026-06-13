@@ -27,13 +27,11 @@ def load_index():
 def get_answer(question: str, session_id: str = "anonymous", top_k: int = 5) -> str:
     """
     Retrieves relevant context via FAISS and generates a tutoring response.
-
     Args:
         question:   The user's question or message.
         session_id: Unique identifier per user session. MUST be passed from the
                     API/route layer so each user maintains separate conversation state.
         top_k:      Number of top context chunks to retrieve from the index.
-
     Returns:
         A formatted tutoring response string with topic link appended.
     """
