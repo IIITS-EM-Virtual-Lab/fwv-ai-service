@@ -285,6 +285,97 @@ The chatbot UI is implemented in:
 
 That component sends user questions to the main website backend, not directly to Hugging Face.
 
+### ChatBot.tsx setup summary
+
+From the main website file:
+
+`D:\AI Integration Website\Fields-And-Waves-Visualization-Lab\frontend\src\components\ChatBot.tsx`
+
+the chatbot is set up like this:
+
+- the component is mounted globally from `frontend/src/App.tsx`
+- it appears as the floating chatbot widget named **Fieldora**
+- it reads auth state and JWT token from Redux
+- it allows chat only for signed-in users
+- it creates a unique thread id for each new chat session
+- it builds a per-user session string in the format:
+  `user-<userId>-thread-<threadId>`
+- it sends requests to the website backend route:
+  `POST /api/chat/ask`
+- it includes the JWT token in the `Authorization` header
+- it sends both `query` and `session_id` in the request body
+- it listens for custom events like `fieldora:prompt` so other pages can trigger AI actions automatically
+
+### Backend URL logic inside ChatBot.tsx
+
+The frontend chatbot does not hardcode only one backend URL.
+
+It uses:
+
+- `import.meta.env.VITE_BACKEND_API_URL` if provided
+- otherwise `http://localhost:5000` for local development
+- otherwise the deployed website backend:
+  `https://fields-and-waves-visualization-lab.onrender.com`
+
+This means juniors can switch environments without rewriting the component if they use the env variable properly.
+
+### Request flow from ChatBot.tsx
+
+When a user sends a message:
+
+1. `ChatBot.tsx` checks if the user is authenticated.
+2. If not signed in, it asks the user to log in.
+3. If signed in, it sends a `fetch` request to:
+   `${API_BASE_URL}/api/chat/ask`
+4. It adds:
+   - `Content-Type: application/json`
+   - `Authorization: Bearer <token>`
+5. It sends this JSON body:
+
+```json
+{
+  "query": "student message here",
+  "session_id": "user-<id>-thread-<id>"
+}
+```
+
+6. The main website backend route receives it.
+7. The main backend validates the JWT.
+8. The main backend forwards the request to this AI Integration backend `/ask`.
+9. The answer is returned back to `ChatBot.tsx`.
+10. The reply is displayed in the chat window.
+
+### Important UI behavior already present in ChatBot.tsx
+
+- chatbot is hidden on:
+  - `/login`
+  - `/signup`
+  - `/forgot-password`
+  - `/reset-password`
+  - quiz pages
+- users can start a fresh chat, which resets the thread id
+- the widget supports page-triggered prompts from learning pages
+- links returned by the backend are rendered as clickable HTML in bot replies
+- the chatbot has quick-topic prompts for:
+  - Maxwell's Equations
+  - Wave Propagation
+  - EM Spectrum
+
+### How content pages trigger the chatbot
+
+The main website file `frontend/src/pages/ContentLayout.tsx` dispatches:
+
+`window.dispatchEvent(new CustomEvent("fieldora:prompt", ...))`
+
+This is how buttons such as:
+
+- Ask AI About This Page
+- Explain Formula
+- Simulation Assistant
+- Generate Lab Report
+
+can automatically open the chatbot and send a structured prompt to it.
+
 ### In the website backend
 
 The proxy route is:
@@ -309,6 +400,23 @@ Website ChatBot.tsx
   -> Website backend /api/chat/ask
   -> Hugging Face AI backend /ask
 ```
+
+### What to update if ChatBot.tsx changes
+
+If engineer modify `ChatBot.tsx`, they should check whether any of these changed:
+
+- backend base URL logic
+- request body fields
+- auth header handling
+- session id format
+- hidden routes
+- custom event name `fieldora:prompt`
+
+If any of those change, they must verify that:
+
+- `backend/routes/chatRoutes.js` in the website repo still accepts the same payload
+- this AI backend still receives the expected `query` and `session_id`
+- page-triggered AI buttons still work
 
 ---
 
