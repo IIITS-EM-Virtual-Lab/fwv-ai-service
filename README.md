@@ -20,6 +20,7 @@ We keep the AI system separate from the main website so that:
 - the AI service can be updated independently
 - scraper, retrieval data, prompts, and model logic can evolve without changing the full website
 
+
 In short:
 
 - `Fields-And-Waves-Visualization-Lab` = main product
