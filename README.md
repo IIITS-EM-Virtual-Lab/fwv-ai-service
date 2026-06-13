@@ -403,7 +403,7 @@ Website ChatBot.tsx
 
 ### What to update if ChatBot.tsx changes
 
-If juniors modify `ChatBot.tsx`, they should check whether any of these changed:
+If engineer modify `ChatBot.tsx`, they should check whether any of these changed:
 
 - backend base URL logic
 - request body fields
