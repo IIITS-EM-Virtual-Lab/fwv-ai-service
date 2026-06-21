@@ -17,6 +17,21 @@ class Query(BaseModel):
     query: str
     session_id: str = "anonymous"  # ✅ Accept session_id, default to anonymous
 
+@app.get("/")
+def root():
+    return {
+        "status": "ok",
+        "service": "fwv-ai-service",
+        "message": "FWV AI service is running",
+    }
+
+@app.get("/health")
+def health():
+    return {
+        "status": "ok",
+        "service": "fwv-ai-service",
+    }
+
 @app.post("/ask")
 def ask_question(data: Query):
     try:
