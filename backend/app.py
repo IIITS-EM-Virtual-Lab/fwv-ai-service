@@ -42,3 +42,4 @@ def ask_question(data: Query):
             return {"answer": "The AI is a bit busy (Rate Limit). Please wait a few seconds and try again!"}
         print("RAG ERROR:", e)
         return {"answer": "Sorry, I'm having trouble connecting to my brain right now."}
+        
